@@ -7,25 +7,36 @@ PORT = 10000
 SOCKET_TIMEOUT = 30
 w = 7
 h = 6
-Matrix = [[0 for x in range(w)] for y in range(h)]
+
+
+class PlaceInMatrix:
+    """
+    Class to handle the game - to know what happens in every place on the board
+    """
+    def __init__(self):
+        self.checked = False
+        self.value = None
+
+
+Matrix = [[PlaceInMatrix() for x in range(w)] for y in range(h)]
 
 
 def play_easy(client_socket):
-    end = False
-    while not end:
-        rand = random(0, range(w))
+    done = False
+    while not done:
+        rand = random(range(w))
         for i in range(h):
             if Matrix[i][rand] is 0:
                 Matrix[i][rand] = 1
                 msg = str(i) + ',' + str(rand)
                 client_socket.send(msg.encode("utf-8"))
-                i = h  # quit the loop
+                break  # quit the loop
         try:
-            [Hc, Wc] = client_socket.recv().decode().split(",")
-            Matrix[Hc][Wc] = 2
+            [hc, wc] = client_socket.recv().decode().split(",")
+            Matrix[hc][wc] = 2
         except():
-               client_socket.close()
-               print("client closed - timeout")
+            client_socket.close()
+            print("client closed - timeout")
 
 
 def play_hard(client_socket):
@@ -33,12 +44,12 @@ def play_hard(client_socket):
 
 
 def play_with_server(client_socket):
-    msg = "choose difficulty level:\n1. easy\n2. hard"
+    msg = "Choose difficulty level:\n1. Easy\n2. Hard"
     client_socket.send(msg.encode("utf-8"))
     try:
         option = client_socket.recv().decode("utf-8")
     except():
-        # closing connection if the client didnt respond before timeout happened
+        # closing connection if the client didn't respond before timeout happened
         client_socket.close()
         print("client closed - timeout")
         return
@@ -49,24 +60,23 @@ def play_with_server(client_socket):
         play_hard(client_socket)
 
 
-
 def handle_client(client_socket):
     # handling clients
-    msg = "choose option:\n1. quit \n2. play with server"
+    msg = "choose option:\n1. Play with server \n2. Quit"
     client_socket.send(msg.encode("utf-8"))
     try:
-        option = client_socket.recv().decode("utf-8")
+        option = client_socket.recv(1024).decode("utf-8")
     except():
-        # closing connection if the client didnt respond before timeout happened
+        # closing connection if the client didn't respond before timeout happened
         client_socket.close()
         print("client closed - timeout")
         return
 
     if option is '1':
+        play_with_server(client_socket)
+    if option is '2':
         client_socket.close()
         print("client left")
-    if option is '2':
-        play_with_server(client_socket)
 
 
 def main():
@@ -79,7 +89,7 @@ def main():
         print('New connection received')
         client_socket.settimeout(SOCKET_TIMEOUT)
 
-        thread = threading.Thread(target=handle_client, args=(client_socket, client_address))
+        thread = threading.Thread(target=handle_client, args=(client_socket,))
         thread.start()
 
 
