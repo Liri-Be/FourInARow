@@ -18,7 +18,7 @@ def playTheGame(c_soc):
             data_from_server = c_soc.recv(1024).decode()
             if "won!" in data_from_server:  # Win
                 print(data_from_server)
-                sleep(0.2)
+                sleep(0.3)
                 finish = True
 
             elif "Your" in data_from_server or "full" in data_from_server:  # signal for user's turn or column is full
