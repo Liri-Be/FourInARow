@@ -148,7 +148,7 @@ def play_hard(client_socket, matrix):
     Controls the game - easy level, chooses column for the server to place it's dice,
     and place the dice in the column from the client.
     :param client_socket: the client socket
-    :param matrix: The matrix of the game - values
+    :param matrix: The matrix of the game - values, game board
     :return None:
     """
     pass
