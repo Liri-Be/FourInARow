@@ -8,3 +8,7 @@ Has 2 levels -
 ## Server
 1. Handles the game - handels connection to the game, place the tokens in the board and checks who wins.
 2. Plays as computer - chooses a columns to drop token to.
+## Client
+User - 
+1. Chooses the level of the game.
+2. Lets the user choose column to drop to.
