@@ -1,4 +1,4 @@
-# FourInARow
+# Four In a Row
 ## The game
 Four in a row game - user vs. computer.  
 Each turn the users selects a column and drop a token, the first one (user or computer) that gets 4 token in a row, colum or diagonal wins.  
