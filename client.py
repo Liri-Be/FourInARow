@@ -52,7 +52,7 @@ def playTheGame(c_soc):
 
 def chooseTheGame(c_soc):
     """
-    Handles the process of choosing whether the users wants to play
+    Handles the process of choosing whether the users wants to play,
     and if so choosing the level of the game, from the client side
     :param c_soc: The socket for connection to server
     :return None:

@@ -32,9 +32,9 @@ def findPlaceToDrop(column, player, matrix):
 
 def checkWin(matrix):
     """
-    check if there is a win and if so, who won - check if there are 4 same symbols in row, column or diagonal
+    Check if there is a win and if so, who won - check if there are 4 same symbols in row, column or diagonal
     :param matrix: The game board - matrix with values
-    :return:
+    :return None:
     """
     # check for win for 4 in row
     for i in range(ROWS):
@@ -145,7 +145,7 @@ def play_easy(client_socket, matrix):
 
 def play_hard(client_socket, matrix):
     """
-    Controls the game - easy level, chooses column for the server to place it's dice,
+    Controls the game - hard level, chooses column for the server to place it's dice,
     and place the dice in the column from the client.
     :param client_socket: the client socket
     :param matrix: The matrix of the game - values
