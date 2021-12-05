@@ -2,7 +2,7 @@ import json
 import socket
 import threading
 import random
-from time import sleep
+from time import sleep, time
 
 IP = "127.0.0.1"
 PORT = 10000
@@ -71,7 +71,7 @@ def checkWin(matrix):
         for j in range(COLS):
             for k in range(i + 1, i + 5):
                 try:
-                    if curr_player == matrix[i+k][j+k] and curr_player != 0:  # found token that creates a diagonal
+                    if curr_player == matrix[i + k][j + k] and curr_player != 0:  # found token that creates a diagonal
                         count_tokens += 1
                         if count_tokens == 4:  # found 4 tokens in a diagonal
                             msg = "Computer won!\n" if curr_player == 1 else "You won!\n"
@@ -85,16 +85,18 @@ def checkWin(matrix):
     return "No win"
 
 
-def play_easy(client_socket, matrix):
+def play_round_easy(client_socket):
     """
-    Controls the game - easy level, chooses column for the server to place its token,
+    Controls the game, one round - easy level, chooses column for the server to place its token,
     and place the dice in the column from the client.
     :param client_socket: the client socket
-    :param matrix: The matrix of the game - values
-    :return None:
+    :return tuple - (True if user won or False otherwise, number of rounds):
     """
+    matrix = [[0 * x * y for x in range(COLS)] for y in range(ROWS)]  # game board
     done = False
+    turns = 0
     while not done:
+        turns += 1
         # server turn
         client_socket.send("Computer's turn".encode())  # send it's the computer turn
         rand = random.randrange(COLS)
@@ -102,14 +104,14 @@ def play_easy(client_socket, matrix):
         while "Full" in msg:  # the column is full
             rand = random.randrange(COLS)
             msg = findPlaceToDrop(rand, 1, matrix)
-        sleep(0.3)
+        sleep(0.4)
 
         client_socket.send(json.dumps(matrix).encode())  # let the client know where the token is
         msg = checkWin(matrix)
-        sleep(0.3)
+        sleep(0.4)
         if "won!" in msg:
             client_socket.send(msg.encode())
-            break
+            return True if "You" in msg else False, turns
         else:
             client_socket.send("Your turn".encode())
 
@@ -138,20 +140,69 @@ def play_easy(client_socket, matrix):
         msg = checkWin(matrix)
         if "won!" in msg:
             client_socket.send(msg.encode())
-            done = True
-
-    handle_client(client_socket)  # return to main "screen"
+            return True if "You" in msg else False, turns
 
 
-def play_hard(client_socket, matrix):
+def play_round_hard(client_socket):
     """
-    Controls the game - hard level, chooses column for the server to place its token,
+    Controls the game, one round - hard level, chooses column for the server to place its token,
     and place the dice in the column from the client.
     :param client_socket: the client socket
-    :param matrix: The matrix of the game - values
+    :return tuple (True if user won or False otherwise, number of rounds):
+    """
+    matrix = [[0 * x * y for x in range(COLS)] for y in range(ROWS)]  # game board
+    return True, 1
+
+
+def playGame(client_socket, rounds, level):
+    """
+    Play the game according to the level and until got the desired amount of wins,
+    and calculate some statistics about the game
+    :param client_socket: the client socket
+    :param rounds: number of wins to win a whole game
+    :param level: the level of the game
     :return None:
     """
-    pass
+    stats = {'wins': 0, 'turns': [], 'time': []}
+    curr_round = 0
+    while stats['wins'] != rounds:
+        start = time()  # start count time of round
+        if level == '1':  # easy
+            win, turns = play_round_easy(client_socket)  # play one round
+        else:  # hard
+            win, turns = play_round_hard(client_socket)  # play one round
+        finish = time()
+        curr_round += 1  # remember rounds played
+        sleep(0.5)
+        stats['time'].append(finish - start)  # remember time
+        stats['turns'].append(turns)  # remember turns
+        if win:
+            stats['wins'] += 1  # remember wins of user
+        avg_wins = stats['wins'] / curr_round  # calc avg wins per round
+        avg_turns = sum(stats['turns']) / curr_round  # calc avg turns per round
+
+        # make msg after one round
+        msg = "\nRound ended, here are the round statistics:\n"
+        msg += "You won: " + str(stats['wins']) + " times\n"
+        msg += "The Computer won: " + str(curr_round-stats['wins']) + " times\n"
+        msg += "Amount of turns for this round: " + str(turns) + "\n"
+        msg += "This round took you " + str(format(stats['time'][curr_round - 1], '.3f')) + " seconds\n"
+        msg += "Average amount of turns per round: " + str(avg_turns) + "\n"
+        msg += "Average amount of wins per round: " + str(avg_wins) + "\n\n"
+        client_socket.send(msg.encode())  # send to client
+
+    # make msg after whole game
+    sleep(1)
+    avg_wins = stats['wins'] / curr_round  # calc avg wins per round
+    avg_turns = sum(stats['turns']) / curr_round  # calc avg turns per round
+    avg_time = sum(stats['time']) / curr_round  # calc avg time per round
+    msg = "\nGame ended, here are the game statistics:\n"
+    msg += "You won: " + str(stats['wins']) + " times\n"
+    msg += "The Computer won: " + str(curr_round-stats['wins']) + " times\n"
+    msg += "Average amount of time per round: " + str(format(avg_time, '.3f')) + " seconds\n"
+    msg += "Average amount of turns per round: " + str(avg_turns) + "\n"
+    msg += "Average amount of wins per round: " + str(avg_wins) + "\n\n"
+    client_socket.send(msg.encode())  # send to client
 
 
 def play_with_server(client_socket):
@@ -160,7 +211,7 @@ def play_with_server(client_socket):
     :param client_socket: The client socket
     :return None:
     """
-    matrix = [[0*x*y for x in range(COLS)] for y in range(ROWS)]  # game board
+    # choose level
     msg = "Choose difficulty level:\n1. Easy\n2. Hard"
     client_socket.send(msg.encode("utf-8"))
     try:
@@ -171,10 +222,42 @@ def play_with_server(client_socket):
         print("client closed - timeout")
         return
 
-    if '1' in option:  # easy
-        play_easy(client_socket, matrix)
-    if '2' in option:  # hard
-        play_hard(client_socket, matrix)
+    # choose amount of wins
+    msg = "Choose amount of wins to declare a win in the game (1 or more):"
+    client_socket.send(msg.encode("utf-8"))
+    cnt = 0  # count to 5, if it's 5, then add delay of 1 second, if it's 5 again and 2s and so on
+    done = False
+    amount = ""
+    times = 1  # count the times the user was wrong 5 times
+    while not done:
+        msg = ""  # msg to client
+        try:
+            amount = client_socket.recv(1024).decode("utf-8")
+        except socket.timeout:
+            # closing connection if the client didn't respond before timeout happened
+            client_socket.close()
+            print("client closed - timeout")
+            return
+        if not amount.isdigit() or int(amount) < 1:
+            cnt += 1
+            msg += "Not valid, left - " + str(5 * times - cnt) + " tries\n"
+            if cnt % 5 == 0:
+                msg += "You failed " + str(cnt) + " times, therefore you need to wait " + str(cnt / 5) + " seconds"
+                times += 1
+        else:
+            msg = "valid, " + amount
+            client_socket.send(msg.encode())
+            break
+        client_socket.send(msg.encode())
+        if cnt % 5 == 0:
+            sleep(cnt / 5)
+
+    sleep(0.3)
+    client_socket.send("Good luck :)".encode())
+    sleep(1)
+    playGame(client_socket, int(amount), option)
+    sleep(0.3)
+    handle_client(client_socket)  # return to main "screen"
 
 
 def handle_client(client_socket):
@@ -184,8 +267,7 @@ def handle_client(client_socket):
     :return None:
     """
     # handling clients
-
-    msg = "choose option:\n1. Play with server \n2. Quit"
+    msg = "Welcome to the game!\nChoose option:\n1. Play with server \n2. Quit"
     client_socket.send(msg.encode("utf-8"))
     try:
         option = client_socket.recv(1024).decode("utf-8")
