@@ -277,9 +277,9 @@ def handle_client(client_socket):
         print("client closed - timeout")
         return
 
-    if option is '1':  # play
+    if option == '1':  # play
         play_with_server(client_socket)
-    if option is '2':  # quit
+    if option == '2':  # quit
         client_socket.close()
         print("client left")
 
