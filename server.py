@@ -151,7 +151,109 @@ def play_round_hard(client_socket):
     :return tuple (True if user won or False otherwise, number of rounds):
     """
     matrix = [[0 * x * y for x in range(COLS)] for y in range(ROWS)]  # game board
-    return True, 1
+    done = False
+    turns = 0
+    while not done:
+        turns += 1
+        # server turn
+        client_socket.send("Computer's turn".encode())  # send it's the computer turn
+        hardPlace(matrix)
+        sleep(0.4)
+
+        client_socket.send(json.dumps(matrix).encode())  # let the client know where the token is
+        msg = checkWin(matrix)
+        sleep(0.4)
+        if "won!" in msg:
+            client_socket.send(msg.encode())
+            return True if "You" in msg else False, turns
+        else:
+            client_socket.send("Your turn".encode())
+
+        # client turn
+        try:
+            wc = client_socket.recv(1024).decode()  # get user's column
+        except socket.timeout:
+            client_socket.close()
+            print("client closed - timeout")
+            return
+        wc = int(wc) - 1
+        msg = findPlaceToDrop(wc, 2, matrix)
+
+        while "Full" in msg:  # the column is full
+            client_socket.send("The column is full, choose a new one".encode())
+            try:
+                wc = client_socket.recv(1024).decode()
+            except socket.timeout:
+                client_socket.close()
+                print("client closed - timeout")
+                return
+            wc = int(wc) - 1
+            msg = findPlaceToDrop(wc, 2, matrix)
+
+        client_socket.send(json.dumps(matrix).encode())  # let the client know where the token is
+        msg = checkWin(matrix)
+        if "won!" in msg:
+            client_socket.send(msg.encode())
+            return True if "You" in msg else False, turns
+
+
+def hardPlace(matrix):
+    """
+    the algorithm by which the play hard is operating
+    :param matrix:
+    :return msg - row,col:
+    """
+    pos = 0
+    if 2 in matrix:
+        for i in range(ROWS):
+            count_tokens = 0
+            for j in range(1, COLS):
+                while matrix[i][j] == 2:  # found token that creates a row
+                    count_tokens += 1
+                    pos = j+1
+ 
+                if count_tokens > 0 and j <= COLS and matrix[i][j + 1] == 0:
+                    msg = findPlaceToDrop(pos, 1, matrix)
+                    if "full" not in msg:
+                        return
+                else:  # found different token that breaks the row
+                    count_tokens = 0
+
+        for i in range(COLS):
+            for j in range(1, ROWS):
+                if matrix[j][i] == 2:  # found token that creates a column
+                    msg = findPlaceToDrop(pos, 1, matrix)
+                    if "full" not in msg:
+                        return
+
+    if 1 in matrix:
+        for i in range(ROWS):
+            count_tokens = 0
+            for j in range(1, COLS):
+                while matrix[i][j] == 1:  # found token that creates a row
+                    count_tokens += 1
+                    pos = j + 1
+
+                if count_tokens > 0 and j <= COLS and matrix[i][j + 1] == 0:
+                    msg = findPlaceToDrop(pos, 1, matrix)
+                    if "full" not in msg:
+                        return
+                else:  # found different token that breaks the row
+                    count_tokens = 0
+
+        for i in range(COLS):
+            for j in range(1, ROWS):
+                if matrix[j][i] == 1:  # found token that creates a column
+                    msg = findPlaceToDrop(pos, 1, matrix)
+                    if "full" not in msg:
+                        return
+
+    rand = random.randrange(COLS)
+    msg = findPlaceToDrop(rand, 1, matrix)
+    while "Full" in msg:  # the column is full
+        rand = random.randrange(COLS)
+        msg = findPlaceToDrop(rand, 1, matrix)
+    return
 
 
 def playGame(client_socket, rounds, level):
@@ -300,3 +402,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
