@@ -34,7 +34,7 @@ def checkWin(matrix):
     """
     Check if there is a win and if so, who won - check if there are 4 same symbols in row, column or diagonal
     :param matrix: The game board - matrix with values
-    :return None:
+    :return msg - whether there is a win or not:
     """
     # check for win for 4 in row
     for i in range(ROWS):
@@ -66,87 +66,104 @@ def checkWin(matrix):
 
     # check for win for 4 in diagonal
     for i in range(ROWS):
-        curr_player = matrix[0][i]
-        count_tokens = 1
         for j in range(COLS):
-            for k in range(i + 1, i + 5):
-                try:
-                    if curr_player == matrix[i + k][j + k] and curr_player != 0:  # found token that creates a diagonal
-                        count_tokens += 1
-                        if count_tokens == 4:  # found 4 tokens in a diagonal
-                            msg = "Computer won!\n" if curr_player == 1 else "You won!\n"
-                            return msg
-                    else:  # found different token that breaks the diagonal
-                        count_tokens = 1
-                        curr_player = matrix[j][i]
-                except IndexError:
-                    break
+            try:
+                if matrix[i][j] == matrix[i + 1][j + 1] == matrix[i + 2][j + 2] == matrix[i + 3][j + 3]:  # left->right
+                    if matrix[i][j] != 0:
+                        msg = "Computer won!\n" if matrix[i][j] == 1 else "You won!\n"
+                        return msg
+            except IndexError:
+                break
+    for i in range(ROWS):
+        for j in range(COLS):
+            try:
+                if matrix[i][j] == matrix[i - 1][j + 1] == matrix[i - 2][j + 2] == matrix[i - 3][j + 3]:  # right->left
+                    if matrix[i][j] != 0:
+                        msg = "Computer won!\n" if matrix[i][j] == 1 else "You won!\n"
+                        return msg
+            except IndexError:
+                break
 
     return "No win"
 
 
-def play_round_easy(client_socket):
+def checkTie(matrix):
     """
-    Controls the game, one round - easy level, chooses column for the server to place its token,
-    and place the dice in the column from the client.
-    :param client_socket: the client socket
-    :return tuple - (True if user won or False otherwise, number of rounds):
+    check if there is a tie - the whole board is full without a winner
+    :param matrix: The game board - matrix with values
+    :return msg - whether there is a tie or not:
     """
-    matrix = [[0 * x * y for x in range(COLS)] for y in range(ROWS)]  # game board
-    done = False
-    turns = 0
-    while not done:
-        turns += 1
-        # server turn
-        client_socket.send("Computer's turn".encode())  # send it's the computer turn
-        rand = random.randrange(COLS)
-        msg = findPlaceToDrop(rand, 1, matrix)
+    for i in range(ROWS):
+        for j in range(COLS):
+            if matrix[i][j] == 0:
+                return "No tie"
+    return "Tie."
+
+
+def hardPlace(matrix):
+    """
+    the algorithm by which the play hard is operating
+    :param matrix: The game board - matrix with values
+    :return msg - row, col:
+    """
+    pos = 0
+    col = 0
+    count_tokens_row = 0
+    count_tokens_col = 0
+
+    for i in range(ROWS):  # count max row of user
+        count_tokens_row = 1
+        for j in range(COLS):
+            if matrix[i][j] == 2:  # found token that creates a row
+                count_tokens_row += 1
+                pos = j + 1
+            try:
+                if count_tokens_row > 0 and matrix[i][j + 1] == 0:
+                    break
+            except IndexError:
+                pass
+            else:  # found different token that breaks the row
+                count_tokens_row = 1
+        else:
+            continue  # if inner for not broken
+        break
+
+    for i in range(COLS):  # count max row of user
+        # curr_player = matrix[0][i]
+        count_tokens_col = 1
+        for j in range(ROWS):
+            if matrix[j][i] == 2:  # found token that creates a column
+                count_tokens_col += 1
+                col = i
+                try:
+                    if count_tokens_col > 0 and matrix[j + 1][i] == 0:
+                        break
+                except IndexError:
+                    pass
+            else:  # found different token that breaks the column
+                count_tokens_col = 1
+        else:
+            continue  # if inner for not broken
+        break
+
+    if count_tokens_col > count_tokens_row:
+        msg = findPlaceToDrop(col, 1, matrix)
         while "Full" in msg:  # the column is full
             rand = random.randrange(COLS)
             msg = findPlaceToDrop(rand, 1, matrix)
-        sleep(0.4)
 
-        client_socket.send(json.dumps(matrix).encode())  # let the client know where the token is
-        msg = checkWin(matrix)
-        sleep(0.4)
-        if "won!" in msg:
-            client_socket.send(msg.encode())
-            return True if "You" in msg else False, turns
-        else:
-            client_socket.send("Your turn".encode())
-
-        # client turn
-        try:
-            wc = client_socket.recv(1024).decode()  # get user's column
-        except socket.timeout:
-            client_socket.close()
-            print("client closed - timeout")
-            return
-        wc = int(wc) - 1
-        msg = findPlaceToDrop(wc, 2, matrix)
-
+    else:
+        msg = findPlaceToDrop(pos, 1, matrix)
         while "Full" in msg:  # the column is full
-            client_socket.send("The column is full, choose a new one".encode())
-            try:
-                wc = client_socket.recv(1024).decode()
-            except socket.timeout:
-                client_socket.close()
-                print("client closed - timeout")
-                return
-            wc = int(wc) - 1
-            msg = findPlaceToDrop(wc, 2, matrix)
-
-        client_socket.send(json.dumps(matrix).encode())  # let the client know where the token is
-        msg = checkWin(matrix)
-        if "won!" in msg:
-            client_socket.send(msg.encode())
-            return True if "You" in msg else False, turns
+            rand = random.randrange(COLS)
+            msg = findPlaceToDrop(rand, 1, matrix)
 
 
-def play_round_hard(client_socket):
+def playOneRound(client_socket, level):
     """
     Controls the game, one round - hard level, chooses column for the server to place its token,
     and place the dice in the column from the client.
+    :param level: the level of the game
     :param client_socket: the client socket
     :return tuple (True if user won or False otherwise, number of rounds):
     """
@@ -156,18 +173,29 @@ def play_round_hard(client_socket):
     while not done:
         turns += 1
         # server turn
-        client_socket.send("Computer's turn".encode())  # send it's the computer turn
-        hardPlace(matrix)
+        client_socket.send("Computer's turn (red)".encode())  # send it's the computer turn
+        if level == '1':  # easy- random
+            rand = random.randrange(COLS)
+            msg = findPlaceToDrop(rand, 1, matrix)
+            while "Full" in msg:  # the column is full
+                rand = random.randrange(COLS)
+                msg = findPlaceToDrop(rand, 1, matrix)
+        else:  # hard - smart
+            hardPlace(matrix)
         sleep(0.4)
 
         client_socket.send(json.dumps(matrix).encode())  # let the client know where the token is
-        msg = checkWin(matrix)
+        msg_win = checkWin(matrix)
+        msg_tie = checkTie(matrix)
         sleep(0.4)
-        if "won!" in msg:
-            client_socket.send(msg.encode())
-            return True if "You" in msg else False, turns
+        if "won!" in msg_win:
+            client_socket.send(msg_win.encode())
+            return True if "You" in msg_win else False, turns
+        elif "Tie." in msg_tie:
+            client_socket.send(msg_tie.encode())
+            return False, turns
         else:
-            client_socket.send("Your turn".encode())
+            client_socket.send("Your turn (green)".encode())
 
         # client turn
         try:
@@ -191,82 +219,15 @@ def play_round_hard(client_socket):
             msg = findPlaceToDrop(wc, 2, matrix)
 
         client_socket.send(json.dumps(matrix).encode())  # let the client know where the token is
-        msg = checkWin(matrix)
-        if "won!" in msg:
-            client_socket.send(msg.encode())
-            return True if "You" in msg else False, turns
-
-
-def hardPlace(matrix):
-    """
-    the algorithm by which the play hard is operating
-    :param matrix:
-    :return msg - row,col:
-    """
-    pos = 0
-    col = 0
-    count_tokens_row = 0
-    count_tokens_col = 0
-
-    if 2 in matrix:
-        for i in range(ROWS):
-            for j in range(1, COLS):
-                while matrix[i][j] == 2:  # count tokens in  a row
-                    count_tokens_row += 1
-                    pos = j+1
- 
-                if count_tokens_row > 0 and j < COLS and matrix[i][j + 1] == 0:
-                    break
-                else:  # found different token that breaks the row
-                    count_tokens_row = 0
-
-        for i in range(COLS):
-            for j in range(1, ROWS):
-                while matrix[j][i] == 2:  # count tokens in a column
-                    count_tokens_col += 1
-                if count_tokens_col > 0 and matrix[j + 1][i] == 0:
-                    col = i
-                    break
-                else:  # found different token that breaks the row
-                    count_tokens_col = 0
-
-        if count_tokens_col > count_tokens_row:
-            msg = findPlaceToDrop(col, 1, matrix)
-            if "full" not in msg:
-                return
-        else:
-            msg = findPlaceToDrop(pos, 1, matrix)
-            if "full" not in msg:
-                return
-
-    if 1 in matrix:
-        for i in range(ROWS):
-            count_tokens = 0
-            for j in range(1, COLS):
-                while matrix[i][j] == 1:  # found token that creates a row
-                    count_tokens += 1
-                    pos = j + 1
-
-                if count_tokens > 0 and j < COLS and matrix[i][j + 1] == 0:
-                    msg = findPlaceToDrop(pos, 1, matrix)
-                    if "full" not in msg:
-                        return
-                else:  # found different token that breaks the row
-                    count_tokens = 0
-
-        for i in range(COLS):
-            for j in range(1, ROWS):
-                if matrix[j][i] == 1:  # found token that creates a column
-                    msg = findPlaceToDrop(pos, 1, matrix)
-                    if "full" not in msg:
-                        return
-
-    rand = random.randrange(COLS)
-    msg = findPlaceToDrop(rand, 1, matrix)
-    while "Full" in msg:  # the column is full
-        rand = random.randrange(COLS)
-        msg = findPlaceToDrop(rand, 1, matrix)
-    return
+        msg_win = checkWin(matrix)
+        msg_tie = checkTie(matrix)
+        sleep(0.4)
+        if "won!" in msg_win:
+            client_socket.send(msg_win.encode())
+            return True if "You" in msg_win else False, turns
+        elif "Tie." in msg_tie:
+            client_socket.send(msg_tie.encode())
+            return False, turns
 
 
 def playGame(client_socket, rounds, level):
@@ -282,10 +243,7 @@ def playGame(client_socket, rounds, level):
     curr_round = 0
     while stats['wins'] != rounds:
         start = time()  # start count time of round
-        if level == '1':  # easy
-            win, turns = play_round_easy(client_socket)  # play one round
-        else:  # hard
-            win, turns = play_round_hard(client_socket)  # play one round
+        win, turns = playOneRound(client_socket, level)  # play one round
         finish = time()
         curr_round += 1  # remember rounds played
         sleep(0.5)
@@ -415,4 +373,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

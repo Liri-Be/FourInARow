@@ -1,6 +1,7 @@
 import json
 import socket
 from time import sleep
+from termcolor import colored
 
 IP = "127.0.0.1"
 PORT = 10000
@@ -43,10 +44,15 @@ def playOneTurn(c_soc):
         try:
             data_from_server = c_soc.recv(1024).decode()
             if "won!" in data_from_server:  # Win
-                print(data_from_server)
+                if "You" in data_from_server:
+                    print(colored(data_from_server, 'green'))
+                else:
+                    print(colored(data_from_server, 'red'))
                 sleep(0.3)
                 return True if "You" in data_from_server else False  # To know if the user won
-
+            elif "Tie." in data_from_server:
+                print(colored(data_from_server, 'yellow'))
+                return False
             elif "Your" in data_from_server or "full" in data_from_server:  # signal for user's turn or column is full
                 print(data_from_server)
                 # choose a place to drop
@@ -60,12 +66,25 @@ def playOneTurn(c_soc):
 
             else:
                 matrix = json.loads(data_from_server)  # matrix
+                for i in range(6):
+                    print(str(i + 1), end="   ")
+                print('7')
                 for i in range(5, -1, -1):
                     for j in range(7):
                         if j == 6:
-                            print(str(matrix[i][j]))
+                            if matrix[i][j] == 1:
+                                print(colored('o', 'red'))
+                            elif matrix[i][j] == 2:
+                                print(colored('o', 'green'))
+                            else:
+                                print('_')
                         else:
-                            print(str(matrix[i][j]), end=", ")
+                            if matrix[i][j] == 1:
+                                print(colored('o', 'red'), end=" | ")
+                            elif matrix[i][j] == 2:
+                                print(colored('o', 'green'), end=" | ")
+                            else:
+                                print('_', end=" | ")
                 print()
 
         except socket.timeout:
