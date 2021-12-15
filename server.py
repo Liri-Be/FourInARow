@@ -170,6 +170,8 @@ def playOneRound(client_socket, level):
     matrix = [[0 * x * y for x in range(COLS)] for y in range(ROWS)]  # game board
     done = False
     turns = 0
+    time_to_choose = []
+    avg_choosing_time = 0
     while not done:
         turns += 1
         # server turn
@@ -190,16 +192,18 @@ def playOneRound(client_socket, level):
         sleep(0.4)
         if "won!" in msg_win:
             client_socket.send(msg_win.encode())
-            return True if "You" in msg_win else False, turns
+            return True if "You" in msg_win else False, turns, avg_choosing_time
         elif "Tie." in msg_tie:
             client_socket.send(msg_tie.encode())
-            return False, turns
+            return False, turns, avg_choosing_time
         else:
             client_socket.send("Your turn (green)".encode())
 
         # client turn
         try:
+            start_choosing = time()
             wc = client_socket.recv(1024).decode()  # get user's column
+            finish_choosing = time()
         except socket.timeout:
             client_socket.close()
             print("client closed - timeout")
@@ -207,7 +211,9 @@ def playOneRound(client_socket, level):
         wc = int(wc) - 1
         msg = findPlaceToDrop(wc, 2, matrix)
 
+        start_fix = -1
         while "Full" in msg:  # the column is full
+            start_fix = time()
             client_socket.send("The column is full, choose a new one".encode())
             try:
                 wc = client_socket.recv(1024).decode()
@@ -217,6 +223,13 @@ def playOneRound(client_socket, level):
                 return
             wc = int(wc) - 1
             msg = findPlaceToDrop(wc, 2, matrix)
+        finish_fix = time()
+
+        choosing_time = finish_choosing - start_choosing
+        if start_fix != -1:
+            choosing_time += finish_fix - start_fix  # add fixing time
+        time_to_choose.append(choosing_time)  # add the time that took to user to choose
+        avg_choosing_time = sum(time_to_choose) / len(time_to_choose)
 
         client_socket.send(json.dumps(matrix).encode())  # let the client know where the token is
         msg_win = checkWin(matrix)
@@ -224,10 +237,10 @@ def playOneRound(client_socket, level):
         sleep(0.4)
         if "won!" in msg_win:
             client_socket.send(msg_win.encode())
-            return True if "You" in msg_win else False, turns
+            return True if "You" in msg_win else False, turns, avg_choosing_time
         elif "Tie." in msg_tie:
             client_socket.send(msg_tie.encode())
-            return False, turns
+            return False, turns, avg_choosing_time
 
 
 def playGame(client_socket, rounds, level):
@@ -239,16 +252,17 @@ def playGame(client_socket, rounds, level):
     :param level: the level of the game
     :return None:
     """
-    stats = {'wins': 0, 'turns': [], 'time': []}
+    stats = {'wins': 0, 'turns': [], 'time': [], 'choosing': []}
     curr_round = 0
     while stats['wins'] != rounds:
         start = time()  # start count time of round
-        win, turns = playOneRound(client_socket, level)  # play one round
+        win, turns, avg_choosing_time = playOneRound(client_socket, level)  # play one round
         finish = time()
         curr_round += 1  # remember rounds played
         sleep(0.5)
         stats['time'].append(finish - start)  # remember time
         stats['turns'].append(turns)  # remember turns
+        stats['choosing'].append(avg_choosing_time)
         if win:
             stats['wins'] += 1  # remember wins of user
         avg_wins = stats['wins'] / curr_round  # calc avg wins per round
@@ -257,11 +271,14 @@ def playGame(client_socket, rounds, level):
         # make msg after one round
         msg = "\nRound ended, here are the round statistics:\n"
         msg += "You won: " + str(stats['wins']) + " times\n"
-        msg += "The Computer won: " + str(curr_round-stats['wins']) + " times\n"
+        msg += "The Computer won: " + str(curr_round - stats['wins']) + " times\n"
         msg += "Amount of turns for this round: " + str(turns) + "\n"
         msg += "This round took you " + str(format(stats['time'][curr_round - 1], '.3f')) + " seconds\n"
-        msg += "Average amount of turns per round: " + str(avg_turns) + "\n"
-        msg += "Average amount of wins per round: " + str(avg_wins) + "\n\n"
+        msg += "This round took you " + str(format(stats['time'][curr_round - 1], '.3f')) + " seconds\n"
+        msg += "You chose where to place the token in " + str(format(stats['choosing'][curr_round - 1], '.3f'))
+        msg += " seconds in average\n"
+        msg += "Average amount of turns per round: " + str(format(avg_turns, '.3f')) + "\n"
+        msg += "Average amount of wins per round: " + str(format(avg_wins, '.3f')) + "\n\n"
         client_socket.send(msg.encode())  # send to client
 
     # make msg after whole game
@@ -271,10 +288,12 @@ def playGame(client_socket, rounds, level):
     avg_time = sum(stats['time']) / curr_round  # calc avg time per round
     msg = "\nGame ended, here are the game statistics:\n"
     msg += "You won: " + str(stats['wins']) + " times\n"
-    msg += "The Computer won: " + str(curr_round-stats['wins']) + " times\n"
+    msg += "The Computer won: " + str(curr_round - stats['wins']) + " times\n"
     msg += "Average amount of time per round: " + str(format(avg_time, '.3f')) + " seconds\n"
-    msg += "Average amount of turns per round: " + str(avg_turns) + "\n"
-    msg += "Average amount of wins per round: " + str(avg_wins) + "\n\n"
+    msg += "You choose where to place the token in " + str(format(stats['choosing'][curr_round - 1], '.3f'))
+    msg += " seconds in average\n"
+    msg += "Average amount of turns per round: " + str(format(avg_turns, '.3f')) + "\n"
+    msg += "Average amount of wins per round: " + str(format(avg_wins, '.3f')) + "\n\n"
     client_socket.send(msg.encode())  # send to client
 
 
