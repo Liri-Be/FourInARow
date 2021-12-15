@@ -1,3 +1,6 @@
+"""
+Liri Benzinou - 213499809 and Alisa Novik - 325024297
+"""
 import json
 import socket
 import threading
