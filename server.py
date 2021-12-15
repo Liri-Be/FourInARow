@@ -204,27 +204,40 @@ def hardPlace(matrix):
     :return msg - row,col:
     """
     pos = 0
+    col = 0
+    count_tokens_row = 0
+    count_tokens_col = 0
+
     if 2 in matrix:
         for i in range(ROWS):
-            count_tokens = 0
             for j in range(1, COLS):
-                while matrix[i][j] == 2:  # found token that creates a row
-                    count_tokens += 1
+                while matrix[i][j] == 2:  # count tokens in  a row
+                    count_tokens_row += 1
                     pos = j+1
  
-                if count_tokens > 0 and j <= COLS and matrix[i][j + 1] == 0:
-                    msg = findPlaceToDrop(pos, 1, matrix)
-                    if "full" not in msg:
-                        return
+                if count_tokens_row > 0 and j < COLS and matrix[i][j + 1] == 0:
+                    break
                 else:  # found different token that breaks the row
-                    count_tokens = 0
+                    count_tokens_row = 0
 
         for i in range(COLS):
             for j in range(1, ROWS):
-                if matrix[j][i] == 2:  # found token that creates a column
-                    msg = findPlaceToDrop(pos, 1, matrix)
-                    if "full" not in msg:
-                        return
+                while matrix[j][i] == 2:  # count tokens in a column
+                    count_tokens_col += 1
+                if count_tokens_col > 0 and matrix[j + 1][i] == 0:
+                    col = i
+                    break
+                else:  # found different token that breaks the row
+                    count_tokens_col = 0
+
+        if count_tokens_col > count_tokens_row:
+            msg = findPlaceToDrop(col, 1, matrix)
+            if "full" not in msg:
+                return
+        else:
+            msg = findPlaceToDrop(pos, 1, matrix)
+            if "full" not in msg:
+                return
 
     if 1 in matrix:
         for i in range(ROWS):
@@ -234,7 +247,7 @@ def hardPlace(matrix):
                     count_tokens += 1
                     pos = j + 1
 
-                if count_tokens > 0 and j <= COLS and matrix[i][j + 1] == 0:
+                if count_tokens > 0 and j < COLS and matrix[i][j + 1] == 0:
                     msg = findPlaceToDrop(pos, 1, matrix)
                     if "full" not in msg:
                         return
