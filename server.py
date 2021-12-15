@@ -277,7 +277,6 @@ def playGame(client_socket, rounds, level):
         msg += "The Computer won: " + str(curr_round - stats['wins']) + " times\n"
         msg += "Amount of turns for this round: " + str(turns) + "\n"
         msg += "This round took you " + str(format(stats['time'][curr_round - 1], '.3f')) + " seconds\n"
-        msg += "This round took you " + str(format(stats['time'][curr_round - 1], '.3f')) + " seconds\n"
         msg += "You chose where to place the token in " + str(format(stats['choosing'][curr_round - 1], '.3f'))
         msg += " seconds in average\n"
         msg += "Average amount of turns per round: " + str(format(avg_turns, '.3f')) + "\n"
