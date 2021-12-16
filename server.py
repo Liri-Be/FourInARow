@@ -1,6 +1,3 @@
-"""
-Liri Benzinou - 213499809 and Alisa Novik - 325024297
-"""
 import json
 import socket
 import threading
@@ -115,7 +112,7 @@ def hardPlace(matrix):
     count_tokens_col = 0
 
     for i in range(ROWS):  # count max row of user
-        count_tokens_row = 1
+        count_tokens_row = 0
         for j in range(COLS):
             if matrix[i][j] == 2:  # found token that creates a row
                 count_tokens_row += 1
@@ -126,14 +123,13 @@ def hardPlace(matrix):
             except IndexError:
                 pass
             else:  # found different token that breaks the row
-                count_tokens_row = 1
+                count_tokens_row = 0
         else:
             continue  # if inner for not broken
         break
 
     for i in range(COLS):  # count max row of user
-        # curr_player = matrix[0][i]
-        count_tokens_col = 1
+        count_tokens_col = 0
         for j in range(ROWS):
             if matrix[j][i] == 2:  # found token that creates a column
                 count_tokens_col += 1
@@ -144,18 +140,25 @@ def hardPlace(matrix):
                 except IndexError:
                     pass
             else:  # found different token that breaks the column
-                count_tokens_col = 1
+                count_tokens_col = 0
         else:
             continue  # if inner for not broken
         break
 
-    if count_tokens_col > count_tokens_row:
+    if count_tokens_col == count_tokens_row == 0:  # board empty - choose randomly
+        rand = random.randrange(COLS)
+        msg = findPlaceToDrop(rand, 1, matrix)
+        while "Full" in msg:  # the column is full
+            rand = random.randrange(COLS)
+            msg = findPlaceToDrop(rand, 1, matrix)
+
+    elif count_tokens_col > count_tokens_row:  # found more tokens of user in a column
         msg = findPlaceToDrop(col, 1, matrix)
         while "Full" in msg:  # the column is full
             rand = random.randrange(COLS)
             msg = findPlaceToDrop(rand, 1, matrix)
 
-    else:
+    else:  # found more tokens of the user in a row
         msg = findPlaceToDrop(pos, 1, matrix)
         while "Full" in msg:  # the column is full
             rand = random.randrange(COLS)
@@ -164,7 +167,7 @@ def hardPlace(matrix):
 
 def playOneRound(client_socket, level):
     """
-    Controls the game, one round - hard level, chooses column for the server to place its token,
+    Controls the game, one round - easy or hard level, chooses column for the server to place its token,
     and place the dice in the column from the client.
     :param level: the level of the game
     :param client_socket: the client socket
