@@ -9,6 +9,7 @@ PORT = 10000
 SOCKET_TIMEOUT = 6000
 COLS = 7
 ROWS = 6
+NUM_CLIENTS = 0
 
 
 def findPlaceToDrop(column, player, matrix):
@@ -173,6 +174,7 @@ def playOneRound(client_socket, level):
     :param client_socket: the client socket
     :return tuple (True if user won or False otherwise, number of rounds):
     """
+    global NUM_CLIENTS
     matrix = [[0 * x * y for x in range(COLS)] for y in range(ROWS)]  # game board
     done = False
     turns = 0
@@ -213,6 +215,7 @@ def playOneRound(client_socket, level):
         except socket.timeout:
             client_socket.close()
             print("client closed - timeout")
+            NUM_CLIENTS -= 1  # one client left
             return
         wc = int(wc) - 1
         msg = findPlaceToDrop(wc, 2, matrix)
@@ -226,6 +229,7 @@ def playOneRound(client_socket, level):
             except socket.timeout:
                 client_socket.close()
                 print("client closed - timeout")
+                NUM_CLIENTS -= 1  # one client left
                 return
             wc = int(wc) - 1
             msg = findPlaceToDrop(wc, 2, matrix)
@@ -309,6 +313,7 @@ def play_with_server(client_socket):
     :return None:
     """
     # choose level
+    global NUM_CLIENTS
     msg = "Choose difficulty level:\n1. Easy\n2. Hard"
     client_socket.send(msg.encode("utf-8"))
     try:
@@ -317,6 +322,7 @@ def play_with_server(client_socket):
         # closing connection if the client didn't respond before timeout happened
         client_socket.close()
         print("client closed - timeout")
+        NUM_CLIENTS -= 1  # one client left
         return
 
     # choose amount of wins
@@ -334,6 +340,7 @@ def play_with_server(client_socket):
             # closing connection if the client didn't respond before timeout happened
             client_socket.close()
             print("client closed - timeout")
+            NUM_CLIENTS -= 1  # one client left
             return
         if not amount.isdigit() or int(amount) < 1:
             cnt += 1
@@ -363,6 +370,7 @@ def handle_client(client_socket):
     :param client_socket: The client socket
     :return None:
     """
+    global NUM_CLIENTS
     # handling clients
     msg = "Welcome to the game!\nChoose option:\n1. Play with server \n2. Quit"
     client_socket.send(msg.encode("utf-8"))
@@ -372,6 +380,7 @@ def handle_client(client_socket):
         # closing connection if the client didn't respond before timeout happened
         client_socket.close()
         print("client closed - timeout")
+        NUM_CLIENTS -= 1  # one client left
         return
 
     if option == '1':  # play
@@ -379,20 +388,30 @@ def handle_client(client_socket):
     if option == '2':  # quit
         client_socket.close()
         print("client left")
+        NUM_CLIENTS -= 1  # one client left
 
 
 def main():
+    global NUM_CLIENTS  # declare it is a global parameter
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # start the connection - tcp
     server_socket.bind((IP, PORT))  # connect to ip and port
-    server_socket.listen(5)  # set amount of clients that can connect
+    server_socket.listen(0)  # set amount of clients that can connect unaccepted - 0
 
     while True:
         client_socket, client_address = server_socket.accept()  # accept new client
         print('New connection received')
-        client_socket.settimeout(SOCKET_TIMEOUT)  # set timeout to the client
 
-        thread = threading.Thread(target=handle_client, args=(client_socket,))  # create new thread to the client
-        thread.start()
+        if NUM_CLIENTS == 5:  # if we reached limit, close connection
+            client_socket.send("Sorry, we reached the limit of clients".encode())
+            client_socket.close()
+            print("client left")
+
+        else:  # we can connect more users
+            NUM_CLIENTS += 1
+            client_socket.settimeout(SOCKET_TIMEOUT)  # set timeout to the client
+            client_socket.send("You are connected!".encode())
+            thread = threading.Thread(target=handle_client, args=(client_socket,))  # create new thread to the client
+            thread.start()
 
 
 if __name__ == '__main__':

@@ -175,6 +175,15 @@ def main():
     colorama.init()  # for colors
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # start the connection - tcp
     client_socket.connect((IP, PORT))  # connect to ip and port
+    try:
+        msg = client_socket.recv(1024).decode()  # try to connect to the server
+        print(msg)
+        if "Sorry" in msg:
+            client_socket.close()
+            return
+    except socket.timeout:
+        client_socket.close()
+        return
     chooseTheGame(client_socket)  # start the game
 
 
