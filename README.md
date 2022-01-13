@@ -14,7 +14,7 @@ Server is the computer - the game from the computer prespective -
    - Checks who wins.
    - Calculate statisticts for each round and game.
 2. Plays as computer - chooses a columns to drop token to.
-## Client
+## Client.py
 The game from the user prespective - 
 1. Chooses the level of the game.
 2. Lets the user choose column to drop to.
