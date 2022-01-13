@@ -8,12 +8,11 @@ Has 2 levels -
 ## Server.py
 Server is the computer - the game from the computer prespective - 
 1. Handles the game - 
-   - Handels connection to the game
-   - Choose a column for the computer to drop a token in
-   - Check user's input
-   - Place the tokens in the board (for both - user and computer)
-   - Checks who wins 
-   - Calculate statisticts for each round and game
+   - Handels connection to the game.
+   - Check user's input.
+   - Place the tokens in the board (for both - user and computer).
+   - Checks who wins.
+   - Calculate statisticts for each round and game.
 2. Plays as computer - chooses a columns to drop token to.
 ## Client
 The game from the user prespective - 
